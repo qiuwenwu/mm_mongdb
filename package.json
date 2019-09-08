@@ -1,6 +1,6 @@
 {
-  "name": "mm_mongdb",
-  "version": "1.2.1",
+  "name": "mm_mongodb",
+  "version": "1.2.3",
   "description": "这是超级美眉mongdb帮助函数模块，用于便捷操作mongdb，使用await方式，可以避免嵌套函数",
   "main": "index.js",
   "scripts": {
@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/qiuwenwu/mm_mongdb.git"
+    "url": "git+https://github.com/qiuwenwu/mm_mongodb.git"
   },
   "keywords": [
     "mysql",
@@ -26,11 +26,11 @@
   "author": "邱文武",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/qiuwenwu/mm_mongdb/issues"
+    "url": "https://github.com/qiuwenwu/mm_mongodb/issues"
   },
-  "homepage": "https://github.com/qiuwenwu/mm_mongdb#readme",
+  "homepage": "https://github.com/qiuwenwu/mm_mongodb#readme",
   "dependencies": {
-    "mm_expand": "^1.2.1",
+    "mm_expand": "^1.2.3",
     "mongodb": "^3.3.2"
   }
 }
