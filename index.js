@@ -70,8 +70,6 @@ class MongoDB {
 		 * 每页显示条数
 		 */
 		this.size = 0;
-
-
 	}
 }
 
