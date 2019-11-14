@@ -279,6 +279,7 @@ function mongoDB_admin(scope, dir) {
 	}
 	return obj;
 }
+
 /**
  * @module 导出MongoDB管理器
  */
