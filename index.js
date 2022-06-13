@@ -31,7 +31,7 @@ class MongoDB {
 		}
 
 		// 配置参数
-		MongoDB.prototype.config = {
+		this.config = {
 			// 服务器地址
 			host: "localhost",
 			// 端口号
@@ -54,6 +54,7 @@ class MongoDB {
 				poolSize: 10
 			}
 		};
+		
 		// 连接地址
 		this.url;
 		// 数据库连接器

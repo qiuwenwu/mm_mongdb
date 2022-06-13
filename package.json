@@ -30,7 +30,7 @@
     },
     "homepage": "https://github.com/qiuwenwu/mm_mongodb#readme",
     "dependencies": {
-        "mm_expand": "^1.4.7",
-        "mongodb": "^3.3.2"
+        "mm_expand": "^1.5.1",
+        "mongodb": "^3.7.2"
     }
 }
