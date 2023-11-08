@@ -16,7 +16,7 @@ class MongoDB {
 	 * @param {String} dir 当前路径
 	 * @constructor
 	 */
-	constructor(scope, dir) {
+	constructor(scope, dir, config) {
 		// 作用域
 		this.scope;
 		if (scope) {
@@ -29,9 +29,7 @@ class MongoDB {
 		if (dir) {
 			this.dir = dir;
 		}
-
-		// 配置参数
-		this.config = {
+		this.config = Object.assign({
 			// 服务器地址
 			host: "localhost",
 			// 端口号
@@ -47,14 +45,14 @@ class MongoDB {
 				// 使用新的url分析器
 				useNewUrlParser: true,
 				// 自动重连接
-				auto_reconnect: true,
+				// auto_reconnect: true,
 				// 使用统一拓扑
 				useUnifiedTopology: true,
+				// useCreateIndex: true,
 				// 连接池数
-				poolSize: 10
+				// poolSize: 10
 			}
-		};
-		
+		}, config);
 		// 连接地址
 		this.url;
 		// 数据库连接器
@@ -62,7 +60,7 @@ class MongoDB {
 		// 操作的数据库
 		this.db;
 		// 表名
-		this.table = "";
+		this.table = "cache";
 		/**
 		 * 页码
 		 */
@@ -108,20 +106,20 @@ MongoDB.prototype.open = async function() {
 	if (!this.url) {
 		this.setUrl();
 	}
-	var _this = this;
-	// 返回一个 Promise
-	var p = new Promise((resolve, reject) => {
-		MongoClient.connect(_this.url, _this.config.options, function(err, conn) {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(conn);
-			}
-		});
-	});
-	_this.conn = await p;
-	_this.db = _this.conn.db(_this.config.database);
-	return _this.conn == true;
+	if (!this.conn) {
+		this.conn = await MongoClient.connect(this.url, this.config.options);
+		this.db = this.conn.db(this.config.database);
+	}
+	return this.conn == true;
+};
+
+/**
+ * 关闭数据库连接
+ */
+MongoDB.prototype.close = function() {
+	if (this.conn) {
+		this.conn.close();
+	}
 };
 
 /**
@@ -130,21 +128,12 @@ MongoDB.prototype.open = async function() {
  * @return {Promise|Object} 执行结果
  */
 MongoDB.prototype.addTable = function(table) {
-	var _this = this;
 	if (table) {
 		this.table = table;
 	} else {
 		table = this.table;
 	}
-	return new Promise((resolve, reject) => {
-		_this.db.createCollection(table, function(err, ret) {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(ret);
-			}
-		});
-	});
+	return this.db.createCollection(table);
 };
 
 /**
@@ -153,16 +142,7 @@ MongoDB.prototype.addTable = function(table) {
  * @return {Promise|Object} 执行结果
  */
 MongoDB.prototype.addObj = function(obj) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		_this.db.collection(_this.table).insertOne(obj, function(err, ret) {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(ret);
-			}
-		});
-	});
+	return this.db.collection(this.table).insertOne(obj);
 };
 
 /**
@@ -171,83 +151,40 @@ MongoDB.prototype.addObj = function(obj) {
  * @return {Promise|Object} 执行结果
  */
 MongoDB.prototype.addList = function(list) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		_this.db.collection(_this.table).insertMany(list, function(err, ret) {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(ret);
-			}
-		});
-	});
+	return this.db.collection(this.table).insertMany(list);
 };
 
 /**
  * @description 删除缓存
- * @param {Object} query 对象
+ * @param {Object} query 查询条件对象
  * @return {Promise|Object} 执行结果
  */
 MongoDB.prototype.del = function(query) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		_this.db.collection(_this.table).remove(query, function(err, ret) {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(ret);
-			}
-		});
-	});
+	return this.db.collection(this.table).remove(query);
 };
 
 /**
  * @description 修改缓存
- * @param {Object} query 对象
- * @param {Object} obj 对象
+ * @param {Object} query 查询条件对象
+ * @param {Object} body 修改对象
  * @return {Promise|Object} 执行结果
  */
-MongoDB.prototype.set = function(query, obj) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		_this.db.collection(_this.table).update(query, obj, function(err, ret) {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(ret);
-			}
-		});
-	});
+MongoDB.prototype.set = function(query, body) {
+	return this.db.collection(this.table).update(query, body);
 };
 
 /**
  * @description 查询缓存
- * @param {Object} query 对象
+ * @param {Object} query 查询条件对象
  * @return {Promise|Array} 执行结果
  */
 MongoDB.prototype.get = function(query) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		if (_this.page !== 0 && _this.size !== 0) {
-			_this.db.collection(_this.table).find(query).limit(_this.size).skip((_this.page - 1) * _this.size).toArray(
-				function(err,
-					ret) {
-					if (err) {
-						reject(err);
-					} else {
-						resolve(ret);
-					}
-				});
-		} else {
-			_this.db.collection(_this.table).find(query).toArray(function(err, ret) {
-				if (err) {
-					reject(err);
-				} else {
-					resolve(ret);
-				}
-			});
-		}
-	});
+	if (this.page !== 0 && this.size !== 0) {
+		return this.db.collection(this.table).find(query).limit(this.size).skip((this.page - 1) * this
+			.size).toArray();
+	} else {
+		return this.db.collection(this.table).find(query).toArray();
+	}
 };
 
 /**

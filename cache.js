@@ -3,33 +3,22 @@
  * @author <a href="http://qww.elins.cn">邱文武</a>
  * @version 1.2
  */
+const {
+	MongoDB
+} = require('./index.js');
 
 /* 创建Mongodb_cache帮助类函数 */
 /// 构造函数
-class Mongodb_cache {
+class Mongodb_cache extends MongoDB {
 	/**
 	 * @description 创建Mongodb_cache帮助类函数 (构造函数)
 	 * @param {String} scope 作用域
 	 * @param {String} dir 当前路径
 	 * @constructor
 	 */
-	constructor(scope, dir) {
-		// 作用域
-		this.scope;
-		if (scope) {
-			this.scope = scope;
-		} else {
-			this.scope = $.val.scope + '';
-		}
-		// 当前目录
-		this.dir = __dirname;
-		if (dir) {
-			this.dir = dir;
-		}
+	constructor(scope, dir, config) {
+		super(scope, dir, config);
 		
-		// 数据库连接器
-		this.conn;
-
 		// 消息订阅器
 		this.conn_rss;
 
@@ -96,26 +85,11 @@ Mongodb_cache.prototype.message = function(channel, message) {
  * @return {Promise|Number} 计算后的结果
  */
 Mongodb_cache.prototype.addInt = function(key, num) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		if (num > 0) {
-			_this.conn.incrby(key, num, function(err, ret) {
-				if (err) {
-					reject(err);
-				} else {
-					resolve(ret);
-				}
-			});
-		} else {
-			_this.conn.decrby(key, -num, function(err, ret) {
-				if (err) {
-					reject(err);
-				} else {
-					resolve(ret);
-				}
-			});
-		}
-	});
+	if (num > 0) {
+		return this.conn.incrby(key, num);
+	} else {
+		return this.conn.decrby(key, -num);
+	}
 };
 
 /**
@@ -125,26 +99,11 @@ Mongodb_cache.prototype.addInt = function(key, num) {
  * @return {Promise|Number} 计算后的结果
  */
 Mongodb_cache.prototype.addFloat = function(key, num) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		if (num > 0) {
-			_this.conn.incrbyfloat(key, num, function(err, ret) {
-				if (err) {
-					reject(err);
-				} else {
-					resolve(ret);
-				}
-			});
-		} else {
-			_this.conn.decrby(key, -num, function(err, ret) {
-				if (err) {
-					reject(err);
-				} else {
-					resolve(ret);
-				}
-			});
-		}
-	});
+	if (num > 0) {
+		return this.conn.incrbyfloat(key, num);
+	} else {
+		return this.conn.decrby(key, -num);
+	};
 };
 
 /**
@@ -154,16 +113,7 @@ Mongodb_cache.prototype.addFloat = function(key, num) {
  * @return {Promise|String} 添加后的字符串
  */
 Mongodb_cache.prototype.addStr = function(key, str) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		_this.conn.append(key, str, function(err, ret) {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(ret);
-			}
-		});
-	});
+	return this.conn.append(key, str);
 };
 
 /**
@@ -172,16 +122,7 @@ Mongodb_cache.prototype.addStr = function(key, str) {
  * @return {Promise|Boolean} 成功返回true,失败返回false
  */
 Mongodb_cache.prototype.del = function(key) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		_this.conn.del(key, function(err, ret) {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(ret === "OK");
-			}
-		});
-	});
+	return this.conn.del(key);
 };
 
 /**
@@ -191,54 +132,32 @@ Mongodb_cache.prototype.del = function(key) {
  * @param {Number} seconds 秒
  * @return {Object} 值
  */
-Mongodb_cache.prototype.set = function(key, value, seconds) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		_this.conn.set(key, value, function(err, ret) {
-			if (err) {
-				reject(err);
-			} else {
-				if (seconds) {
-					_this.conn.expire(key, seconds);
-				}
-				resolve(ret === "OK");
-			}
-		});
-	});
+Mongodb_cache.prototype.set = async function(key, value, seconds) {
+	var ret;
+	ret = await this.conn.set(key, value);
+	if (seconds) {
+		ret = await this.conn.expire(key, seconds);
+	}
+	return ret
 };
 
 /**
- * @description 修改缓存
+ * @description 添加缓存
  * @param {String} key 键
  * @param {Object} value 值
  * @param {Number} seconds 秒
  * @return {Promise|Object} 值
  */
-Mongodb_cache.prototype.add = function(key, value, seconds) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		_this.conn.exists(key, function(error, res) {
-			if (error) {
-				reject(error);
-			} else {
-				if (res) {
-					// 已存在，不增加
-					resolve(false);
-				} else {
-					_this.conn.set(key, value, function(err, ret) {
-						if (err) {
-							reject(err);
-						} else {
-							if (seconds) {
-								_this.conn.expire(key, seconds);
-							}
-							resolve(ret === "OK");
-						}
-					});
-				}
-			}
-		});
-	});
+Mongodb_cache.prototype.add = async function(key, value, seconds) {
+	var ret;
+	var has = await this.conn.exists(key);
+	if (!has) {
+		ret = await this.conn.set(key, value);
+	}
+	if (seconds) {
+		ret = await this.conn.expire(key, seconds);
+	}
+	return ret
 };
 
 /**
@@ -247,16 +166,7 @@ Mongodb_cache.prototype.add = function(key, value, seconds) {
  * @return {Promise|Object} 查询值
  */
 Mongodb_cache.prototype.get = function(key) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		_this.conn.get(key, function(err, ret) {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(ret);
-			}
-		});
-	});
+	return this.conn.get(key);
 };
 
 /**
@@ -265,16 +175,7 @@ Mongodb_cache.prototype.get = function(key) {
  * @return {Promise|Boolean} 有返回true, 没有返回false
  */
 Mongodb_cache.prototype.has = function(key) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		_this.conn.exists(key, function(err, ret) {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(ret === 1);
-			}
-		});
-	});
+	return this.conn.exists(key);
 };
 
 /**
@@ -285,16 +186,7 @@ Mongodb_cache.prototype.has = function(key) {
  * @return {Promise|String} 查询值
  */
 Mongodb_cache.prototype.getrange = function(key, start, end) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		_this.conn.getrange(key, start, end, function(err, ret) {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(ret);
-			}
-		});
-	});
+	return this.conn.getrange(key, start, end);
 };
 
 /**
@@ -305,16 +197,7 @@ Mongodb_cache.prototype.getrange = function(key, start, end) {
  * @return {Promise|Number} 字符串长度
  */
 Mongodb_cache.prototype.setrange = function(key, index, value) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		_this.conn.getrange(key, index, value, function(err, ret) {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(ret);
-			}
-		});
-	});
+	return this.conn.getrange(key, index, value);
 };
 
 /**
@@ -323,26 +206,11 @@ Mongodb_cache.prototype.setrange = function(key, index, value) {
  * @return {Promise|Array} 执行结果
  */
 Mongodb_cache.prototype.clear = function(key) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		if (key) {
-			_this.conn.del(key, function(err, ret) {
-				if (err) {
-					reject(err);
-				} else {
-					resolve(ret);
-				}
-			});
-		} else {
-			_this.conn.flushdb(function(err, ret) {
-				if (err) {
-					reject(err);
-				} else {
-					resolve(ret);
-				}
-			});
-		}
-	});
+	if (key) {
+		return this.conn.del(key);
+	} else {
+		return this.conn.flushdb();
+	}
 };
 
 /**
@@ -353,16 +221,7 @@ Mongodb_cache.prototype.clear = function(key) {
  * @return {Promise|Array} 排序后的数组
  */
 Mongodb_cache.prototype.sort = function(key) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		_this.conn.sort(key, function(err, ret) {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(ret);
-			}
-		});
-	});
+	return this.conn.sort(key);
 };
 
 /**
@@ -371,19 +230,10 @@ Mongodb_cache.prototype.sort = function(key) {
  * @return {Promise|Array} 键数组
  */
 Mongodb_cache.prototype.keys = function(key) {
-	var _this = this;
 	if (!key) {
 		key = "*";
 	}
-	return new Promise((resolve, reject) => {
-		_this.conn.keys(key, function(err, ret) {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(ret);
-			}
-		});
-	});
+	return this.conn.keys(key);
 };
 
 /**
@@ -394,19 +244,7 @@ Mongodb_cache.prototype.keys = function(key) {
  * @return {Promise|Array} 执行结果
  */
 Mongodb_cache.prototype.list_set = function(key, value, seconds) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		_this.conn.rpush(key, value, function(err, ret) {
-			if (err) {
-				reject(err);
-			} else {
-				if (seconds) {
-					_this.conn.expire(key, seconds);
-				}
-				resolve(ret);
-			}
-		});
-	});
+	return this.conn.rpush(key, value);
 };
 
 /**
@@ -416,16 +254,7 @@ Mongodb_cache.prototype.list_set = function(key, value, seconds) {
  * @return {Promise|String} 追加后的数组
  */
 Mongodb_cache.prototype.list_push = function(key, value) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		_this.conn.rpush(key, value, function(err, ret) {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(ret);
-			}
-		});
-	});
+	return this.conn.rpush(key, value);
 };
 
 /**
@@ -434,23 +263,20 @@ Mongodb_cache.prototype.list_push = function(key, value) {
  * @param {Object} value 值
  * @return {Promise|Boolean} 存在返回true, 否则返回false
  */
-Mongodb_cache.prototype.list_has = function(key, value) {
-	var _this = this;
-	return new Promise(async (resolve, reject) => {
-		if (!value) {
-			reject('值不能为空');
+Mongodb_cache.prototype.list_has = async function(key, value) {
+	if (!value) {
+		throw '值不能为空';
+	}
+	var arr = await this.list_get(key);
+	var has = false;
+	var len = arr.length;
+	for (var i = 0; i < len; i++) {
+		if (value == arr[i]) {
+			has = true;
+			break;
 		}
-		var arr = await _this.list_get(key);
-		var has = false;
-		var len = arr.length;
-		for (var i = 0; i < len; i++) {
-			if (value == arr[i]) {
-				has = true;
-				break;
-			}
-		}
-		resolve(has);
-	});
+	}
+	return has;
 };
 
 /**
@@ -461,22 +287,13 @@ Mongodb_cache.prototype.list_has = function(key, value) {
  * @return {Promise|Array} 查询到的数组
  */
 Mongodb_cache.prototype.list_get = function(key, start, end) {
-	var _this = this;
 	if (start === undefined) {
 		start = 0;
 	}
 	if (end === undefined) {
 		end = -1;
 	}
-	return new Promise((resolve, reject) => {
-		_this.conn.lrange(key, start, end, function(err, ret) {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(ret);
-			}
-		});
-	});
+	return this.conn.lrange(key, start, end);
 };
 
 /**
@@ -485,38 +302,27 @@ Mongodb_cache.prototype.list_get = function(key, start, end) {
  * @param {Array} value 新成员, 没有则删除数组
  * @return {Promise|Boolean} 成功返回true，是否返回false
  */
-Mongodb_cache.prototype.list_clear = function(key, value) {
-	var _this = this;
-	return new Promise((resolve, reject) => {
-		if (key) {
-			if (value) {
-				// 如果有值则删除其他成员，保留新值
-				_this.list_push(key, value).then(function(len) {
-					_this.conn.ltrim(key, len - value.length, len - 1, function(err, ret) {
-						if (err) {
-							reject(err);
-						} else {
-							resolve(ret === "OK");
-						}
-					});
-				}, function(er) {
-					reject(er);
-				});
-			} else {
-				// 直接删除键
-				_this.conn.del(key, function(err, ret) {
-					if (err) {
-						reject(err);
-					} else {
-						resolve(ret === "OK");
-					}
-				});
+Mongodb_cache.prototype.list_clear = async function(key, value) {
+	var ret;
+	if (key) {
+		if (value) {
+			// 如果有值则删除其他成员，保留新值
+			try {
+				var len = await this.list_push(key, value);
+				ret = this.conn.ltrim(key, len - value.length, len - 1);
+			} catch (e) {
+
 			}
 		} else {
-			reject('键不能为空');
+			// 直接删除键
+			return await this.conn.del(key);
 		}
-	});
+	} else {
+		throw '键不能为空';
+	}
+	return ret
 };
+
 /**
  * @description 导出Mongodb_cache类
  */
